@@ -12,17 +12,17 @@ import java.util.ArrayList;
 import javax.swing.*;
 
 public class GUI extends JFrame implements ActionListener {
-    private static final int BOARD_SIZE = 3;
+    private static final int MIN_ROWS = 1;
+    private static final int MAX_ROWS = 20;
     private static final String TOKEN_X = "X";
     private static final String TOKEN_O = "O";
     private static final Font MAIN_FONT = new Font("Purisa", Font.BOLD, 18);
-    private static final Font CELL_FONT = new Font("Rufscript", Font.BOLD, 100);
     private static final int X = 800, Y = 480, BG_COLOR = 190; // size of the game window
 
     private JMenuItem mnuNewGame = new JMenuItem("  New Game");
     private JMenuItem mnuExit = new JMenuItem("    Quit");
 
-    private JButton[][] cells = new JButton[BOARD_SIZE][BOARD_SIZE];
+    private JButton[][] cells;
 
     private JPanel pnlSouth = new JPanel();
     private JPanel pnlBottom = new JPanel();
@@ -88,21 +88,6 @@ public class GUI extends JFrame implements ActionListener {
         mnuNewGame.addActionListener(this);
         mnuExit.addActionListener(this);
 
-        // setting up the playing field
-        pnlPlayingField.setLayout(new GridLayout(BOARD_SIZE, BOARD_SIZE, 2, 2));
-        pnlPlayingField.setBackground(Color.black);
-        for (int i = 0; i < BOARD_SIZE; ++i) {
-            for (int j = 0; j < BOARD_SIZE; ++j) {
-                cells[i][j] = new JButton();
-                cells[i][j].setBackground(new Color(220, 220, 220));
-                cells[i][j].setFont(CELL_FONT);
-                cells[i][j].setOpaque(true);
-                cells[i][j].addActionListener(this);
-                pnlPlayingField.add(cells[i][j]);
-                cells[i][j].setEnabled(setTableEnabled);
-            }
-        }
-
         // adding everything needed to pnlNorth and pnlSouth
         pnlNorth.add(mnuMain);
         showGame();
@@ -111,6 +96,7 @@ public class GUI extends JFrame implements ActionListener {
         window.add(pnlNorth, BorderLayout.NORTH);
         window.add(pnlSouth, BorderLayout.CENTER);
 
+        setUpPlayingField();
         createGameModeScreen();
 
         window.setVisible(true);
@@ -124,8 +110,8 @@ public class GUI extends JFrame implements ActionListener {
 
         // check if a button was clicked on the gameboard
         if (getEmptyCellCount() > 0) {
-            for (int i = 0; i < BOARD_SIZE; ++i) {
-                for (int j = 0; j < BOARD_SIZE; j++) {
+            for (int i = 0; i < cells.length; ++i) {
+                for (int j = 0; j < cells.length; j++) {
                     if (source == cells[i][j]) {
                         btnEmptyClicked = true;
                         cells[i][j].setText(nextPlayer);
@@ -161,7 +147,7 @@ public class GUI extends JFrame implements ActionListener {
                         JOptionPane.showMessageDialog(null, "Sorry, you lost.");
                     }
                 } else if (getEmptyCellCount() == 0) {
-                    JOptionPane.showMessageDialog(null, "It's a draw!");
+                    JOptionPane.showMessageDialog(null, "Cat's game!");
                 }
             }
         } // if (getEmptyCellCount() > 0)
@@ -176,11 +162,13 @@ public class GUI extends JFrame implements ActionListener {
                 if (option == JOptionPane.YES_OPTION) {
                     nextPlayer = null;
                     setTableEnabled = false;
+                    setUpPlayingField();
                     createGameModeScreen();
                 } else {
                     showGame();
                 }
             } else {
+                setUpPlayingField();
                 createGameModeScreen();
             }
         } else if (source == mnuExit) {
@@ -241,8 +229,8 @@ public class GUI extends JFrame implements ActionListener {
         pnlSouth.removeAll();
         showGame();
 
-        for (int i = 0; i < BOARD_SIZE; ++i) {
-            for (int j = 0; j < BOARD_SIZE; ++j) {
+        for (int i = 0; i < cells.length; ++i) {
+            for (int j = 0; j < cells.length; ++j) {
                 cells[i][j].setText("");
                 cells[i][j].setEnabled(setTableEnabled);
             }
@@ -277,8 +265,8 @@ public class GUI extends JFrame implements ActionListener {
         } else {
             int nonEmptyCount = 0;
 
-            for (int col = 0; col < BOARD_SIZE; col++) {
-                for (int row = 0; row < BOARD_SIZE; row++) {
+            for (int col = 0; col < cells.length; col++) {
+                for (int row = 0; row < cells.length; row++) {
                     String cellText = cells[row][col].getText();
                     if (!cellText.isEmpty()) {
                         nonEmptyCount++;
@@ -286,7 +274,7 @@ public class GUI extends JFrame implements ActionListener {
                 }
             }
 
-            if (nonEmptyCount == BOARD_SIZE * BOARD_SIZE) {
+            if (nonEmptyCount == cells.length * cells.length) {
                 return BoardStatus.DRAW;
             } else if (nonEmptyCount == 0) {
                 return BoardStatus.NOT_STARTED;
@@ -300,7 +288,7 @@ public class GUI extends JFrame implements ActionListener {
         // Check columns
         int count = 0;
         for (int col = 0; col < cells.length; col++) {
-            for (int row = 0; row < cells.length; row++) {
+            for (int row = 0; row < cells[0].length; row++) {
                 if (cells[row][col].getText().equalsIgnoreCase(token)) {
                     count++;
                 }
@@ -315,7 +303,7 @@ public class GUI extends JFrame implements ActionListener {
         // Check rows
         count = 0;
         for (int row = 0; row < cells.length; row++) {
-            for (int col = 0; col < cells.length; col++) {
+            for (int col = 0; col < cells[0].length; col++) {
                 if (cells[row][col].getText().equalsIgnoreCase(token)) {
                     count++;
                 }
@@ -420,6 +408,9 @@ public class GUI extends JFrame implements ActionListener {
     private void cpuMakeMoveMiniMax() {
         // Get the next best move for the computer
         int depth = 10;
+        if (cells.length > 3) {
+            depth = 2;
+        }
 
         Move move = minimax(depth, TOKEN_O);
         place(move.position, TOKEN_O);
@@ -551,5 +542,51 @@ public class GUI extends JFrame implements ActionListener {
         }
 
         return new Pair<>(row, column);
+    }
+
+    private static int requestBoardSize() {
+        String inputValue = JOptionPane.showInputDialog(String.format("How many rows (between %d and %d) do you want on your board?", MIN_ROWS, MAX_ROWS));
+        int rows = 0;
+        boolean validInput = false;
+
+        while (!validInput) {
+            try {
+                rows = Integer.parseInt(inputValue);
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Value must be an integer!");
+            }
+            if (rows < MIN_ROWS || rows > MAX_ROWS) {
+                JOptionPane.showInputDialog(String.format("Please enter a number between %d and %d.", MIN_ROWS, MAX_ROWS));
+            } else {
+                validInput = true;
+            }
+        }
+
+        return rows;
+    }
+
+    private void setUpPlayingField() {
+        int rows = requestBoardSize();
+        cells = new JButton[rows][rows];
+
+        // setting up the playing field
+        pnlPlayingField.removeAll();
+        pnlPlayingField.setLayout(new GridLayout(cells.length, cells.length, 2, 2));
+        pnlPlayingField.setBackground(Color.black);
+        for (int i = 0; i < cells.length; ++i) {
+            for (int j = 0; j < cells.length; ++j) {
+                cells[i][j] = new JButton();
+                cells[i][j].setBackground(new Color(220, 220, 220));
+                if (cells.length < 7) {
+                    cells[i][j].setFont(new Font("Rufscript", Font.BOLD, 100));
+                } else {
+                    cells[i][j].setFont(new Font("Rufscript", Font.BOLD, 70));
+                }
+                cells[i][j].setOpaque(true);
+                cells[i][j].addActionListener(this);
+                pnlPlayingField.add(cells[i][j]);
+                cells[i][j].setEnabled(setTableEnabled);
+            }
+        }
     }
 }
